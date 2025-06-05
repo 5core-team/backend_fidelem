@@ -1,7 +1,5 @@
 <?php
 
-// app/Http/Controllers/CreditRequestController.php
-
 namespace App\Http\Controllers;
 
 use App\Models\CreditRequest;
@@ -11,9 +9,7 @@ use Illuminate\Support\Facades\Auth;
 
 class CreditRequestController extends Controller
 {
-  // Dans votre contrôleur Laravel
-// Dans votre contrôleur Laravel
-// Dans votre contrôleur Laravel
+  
 public function store(Request $request)
 {
     try {
@@ -24,7 +20,7 @@ public function store(Request $request)
             'additional_details' => 'nullable|string',
         ]);
 
-        $userId = Auth::id(); // Ou $request->clientId si vous voulez forcer l'id
+        $userId = Auth::id(); 
 
         $creditRequest = CreditRequest::create([
             'user_id' => $userId,
@@ -39,13 +35,6 @@ public function store(Request $request)
         return response()->json(['message' => 'Erreur lors de l\'enregistrement', 'error' => $e->getMessage()], 500);
     }
 }
-
-
-     public function index()
-    {
-        $creditRequests = CreditRequest::with(['user', 'user.advisor'])->where('user_id', Auth::id())->get();
-        return response()->json($creditRequests);
-    }
 
     
     public function getActiveCredits()
@@ -68,4 +57,67 @@ public function store(Request $request)
 
         return response()->json($creditRequest);
     }
+ 
+public function getCreditRequestsByAdvisor(Request $request)
+{
+    $advisorId = $request->user()->id;
+    
+    $creditRequests = CreditRequest::with(['user' => function($query) use ($advisorId) {
+                        $query->where('created_by', $advisorId);
+                      }])
+                      ->whereHas('user', function($query) use ($advisorId) {
+                        $query->where('created_by', $advisorId);
+                      })
+                      ->get();
+    
+    return response()->json($creditRequests);
+}
+
+public function getAdvisorStats(Request $request)
+{
+    $advisorId = $request->user()->id;
+    
+    $totalUsers = User::where('role', 'user')
+                     ->where('created_by', $advisorId)
+                     ->count();
+                     
+    $pendingUsers = User::where('role', 'user')
+                       ->where('created_by', $advisorId)
+                       ->where('statut', 'pending')
+                       ->count();
+                       
+    $pendingRequests = CreditRequest::whereHas('user', function($query) use ($advisorId) {
+                          $query->where('created_by', $advisorId);
+                       })
+                       ->where('status', 'pending')
+                       ->count();
+                       
+    $approvedRequests = CreditRequest::whereHas('user', function($query) use ($advisorId) {
+                           $query->where('created_by', $advisorId);
+                        })
+                        ->where('status', 'approved')
+                        ->count();
+    
+    return response()->json([
+        'totalUsers' => $totalUsers,
+        'pendingUsers' => $pendingUsers,
+        'pendingRequests' => $pendingRequests,
+        'approvedRequests' => $approvedRequests,
+    ]);
+}
+
+public function index(Request $request)
+{
+    $userId = $request->query('userId');
+
+    $creditRequests = CreditRequest::with(['user'])
+        ->whereHas('user', function ($query) use ($userId) {
+            $query->where('created_by', $userId);
+        })
+        ->get();
+
+    return response()->json($creditRequests);
+}
+
+    
 }

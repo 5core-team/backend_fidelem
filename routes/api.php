@@ -59,9 +59,6 @@ Route::middleware(['auth:sanctum', 'checkUserType:Responsable Financier'])->grou
     Route::post('/users/{id}/reject', [UserManagementController::class, 'reject']);
     Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
     Route::get('/pending-accounts-count', [UserManagementController::class, 'getPendingAccountsCount']);
-   // Route::post('/update-profile', [UserManagementController::class, 'updateProfile']);
-   // Route::post('/update-password', [UserManagementController::class, 'updatePassword']);
-
 
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -83,3 +80,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
 
+Route::middleware('auth:sanctum')->group(function () {
+    // Routes pour les conseillers
+    Route::prefix('advisor')->group(function () {
+        Route::get('/{advisorId}/clients', [UserController::class, 'getClientsByAdvisor']);
+        Route::get('/{advisorId}/stats', [UserController::class, 'getAdvisorStats']);
+        Route::get('/{advisorId}/credit-requests', [CreditRequestController::class, 'getCreditRequestsByAdvisor']);
+    });
+    
+    // ... autres routes ...
+});

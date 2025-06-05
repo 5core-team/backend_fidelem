@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 
 class UserManagementController extends Controller
 {
-  public function index(Request $request)
+    public function index(Request $request)
     {
         $type = $request->query('type_compte');
         if ($type) {
@@ -21,7 +21,7 @@ class UserManagementController extends Controller
         return response()->json($users);
     }
 
- public function getUserStatsAdvisor()
+    public function getUserStatsAdvisor()
     {
         $totalUsers = User::where('type_compte', 'user')->count();
         $pendingUsers = User::where('type_compte', 'user')->where('statut', 'En attente')->count();
@@ -58,7 +58,7 @@ class UserManagementController extends Controller
         return response()->json(['message' => 'Utilisateur supprimé avec succès']);
     }
 
-  
+
 
     public function getCreditStats()
     {
@@ -88,13 +88,13 @@ class UserManagementController extends Controller
         ]);
     }
 
-  
-public function updateProfile(Request $request)
+
+    public function updateProfile(Request $request)
     {
         $validatedData = $request->validate([
             'firstName' => 'required|string|max:255',
             'lastName' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,'.Auth::id(),
+            'email' => 'required|string|email|max:255|unique:users,email,' . Auth::id(),
             'phone' => 'nullable|string',
             'address' => 'nullable|string',
         ]);
@@ -116,28 +116,27 @@ public function updateProfile(Request $request)
         return response()->json(['message' => 'Profil mis à jour avec succès']);
     }
 
-public function updatePassword(Request $request)
-{
-    $validatedData = $request->validate([
-        'currentPassword' => 'required|string',
-        'newPassword' => 'required|string|min:6|confirmed', // Laravel attend newPassword_confirmation
-    ]);
+    public function updatePassword(Request $request)
+    {
+        $validatedData = $request->validate([
+            'currentPassword' => 'required|string',
+            'newPassword' => 'required|string|min:6|confirmed', // Laravel attend newPassword_confirmation
+        ]);
 
-    $user = Auth::user();
+        $user = Auth::user();
 
-    if (!$user) {
-        return response()->json(['message' => 'Utilisateur non authentifié'], 401);
+        if (!$user) {
+            return response()->json(['message' => 'Utilisateur non authentifié'], 401);
+        }
+
+        if (!Hash::check($validatedData['currentPassword'], $user->password)) {
+            return response()->json(['message' => 'Le mot de passe actuel est incorrect'], 401);
+        }
+
+        $user->update([
+            'password' => Hash::make($validatedData['newPassword']),
+        ]);
+
+        return response()->json(['message' => 'Mot de passe modifié avec succès']);
     }
-
-    if (!Hash::check($validatedData['currentPassword'], $user->password)) {
-        return response()->json(['message' => 'Le mot de passe actuel est incorrect'], 401);
-    }
-
-    $user->update([
-        'password' => Hash::make($validatedData['newPassword']),
-    ]);
-
-    return response()->json(['message' => 'Mot de passe modifié avec succès']);
-}
-
 }
