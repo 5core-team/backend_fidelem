@@ -6,7 +6,8 @@ use App\Models\CreditRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Validator;
 class CreditRequestController extends Controller
 {
   
@@ -45,19 +46,6 @@ public function store(Request $request)
         return response()->json($activeCredits);
     }
 
-    public function updateStatus(Request $request, $id)
-    {
-        $validatedData = $request->validate([
-            'status' => 'required|string|in:Approuvée,Rejetée',
-        ]);
-
-        $creditRequest = CreditRequest::findOrFail($id);
-        $creditRequest->status = $validatedData['status'];
-        $creditRequest->save();
-
-        return response()->json($creditRequest);
-    }
- 
 public function getCreditRequestsByAdvisor(Request $request)
 {
     $advisorId = $request->user()->id;
@@ -119,5 +107,52 @@ public function index(Request $request)
     return response()->json($creditRequests);
 }
 
+      
+         public function indexAdmin(): JsonResponse
+    {
+        try {
+            $creditRequests = CreditRequest::with('user')->get(); // Eager load the user relationship
+            return response()->json($creditRequests);
+        } catch (\Exception $e) {
+            // Log the error for debugging purposes
+            
+            return response()->json(['error' => 'Failed to fetch credit requests'], 500);
+        }
+    }
+
+    public function approve($id)
+    {
+        $creditRequest = CreditRequest::findOrFail($id);
+        $creditRequest->update(['status' => 'Approuvé']);
+        return response()->json($creditRequest);
+    }
+
+    public function reject($id)
+    {
+        $creditRequest = CreditRequest::findOrFail($id);
+        $creditRequest->update(['status' => 'Rejeté']);
+        return response()->json($creditRequest);
+    }
+
+    public function destroy($id)
+    {
+        $creditRequest = CreditRequest::findOrFail($id);
+        $creditRequest->delete();
+        return response()->json(['message' => 'Demande de crédit supprimée avec succès']);
+    }
+
+     public function updateStatus(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'status' => 'required|in:En attente,Approuvé,Rejeté',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+        $creditRequest = CreditRequest::findOrFail($id);
+        $creditRequest->status = $request->input('status');
+        $creditRequest->save();
+        return response()->json(['message' => 'Credit request status updated successfully']);
+    }
     
 }

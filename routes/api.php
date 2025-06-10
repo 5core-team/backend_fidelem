@@ -67,17 +67,22 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 
-// routes/api.php
-
 use App\Http\Controllers\CreditRequestController;
 
 Route::middleware('auth:sanctum')->group(function () {
+    // Routes pour les demandes de crédit et conseillers
     Route::post('/credit-requests', [CreditRequestController::class, 'store']);
     Route::get('/credit-requests', [CreditRequestController::class, 'index']);
     Route::put('/credit-requests/{id}/status', [CreditRequestController::class, 'updateStatus']);
     Route::get('/active-credits', [CreditRequestController::class, 'getActiveCredits']);
-});
 
+    // Routes pour les administrateurs
+    Route::get('/credit-requests-admin', [CreditRequestController::class, 'indexAdmin']);
+    Route::post('/credit-requests/{id}/approve', [CreditRequestController::class, 'approve']);
+    Route::post('/credit-requests/{id}/reject', [CreditRequestController::class, 'reject']);
+    Route::delete('/credit-requests/{id}', [CreditRequestController::class, 'destroy']);
+    Route::put('/credit-requests/{id}/status', [CreditRequestController::class, 'updateStatus']);
+});
 
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -88,5 +93,4 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{advisorId}/credit-requests', [CreditRequestController::class, 'getCreditRequestsByAdvisor']);
     });
     
-    // ... autres routes ...
 });

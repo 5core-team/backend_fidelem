@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use App\Models\CreditRequest;
 use Illuminate\Support\Facades\Auth;
 
 
@@ -60,20 +62,32 @@ class UserManagementController extends Controller
 
 
 
-    public function getCreditStats()
-    {
-        // Simuler des données pour l'instant
-        $creditStatsData = [
-            ['name' => 'Jan', 'Montant' => 150000, 'Demandes' => 10],
-            ['name' => 'Fév', 'Montant' => 200000, 'Demandes' => 15],
-            ['name' => 'Mar', 'Montant' => 180000, 'Demandes' => 12],
-            ['name' => 'Avr', 'Montant' => 300000, 'Demandes' => 25],
-            ['name' => 'Mai', 'Montant' => 250000, 'Demandes' => 20],
-            ['name' => 'Juin', 'Montant' => 420000, 'Demandes' => 35],
+public function getCreditStats()
+{
+    // Récupérer les statistiques de crédit depuis la base de données
+    $creditStatsData = CreditRequest::select(
+        DB::raw('MONTH(created_at) as month'),
+        DB::raw('SUM(amount) as total_amount'),
+        DB::raw('COUNT(*) as total_requests')
+    )
+    ->groupBy('month')
+    ->orderBy('month')
+    ->get()
+    ->map(function ($item) {
+        $monthNames = [
+            1 => 'Jan', 2 => 'Fév', 3 => 'Mar', 4 => 'Avr',
+            5 => 'Mai', 6 => 'Juin', 7 => 'Juil', 8 => 'Août',
+            9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Déc'
         ];
+        return [
+            'name' => $monthNames[$item->month],
+            'Montant' => $item->total_amount,
+            'Demandes' => $item->total_requests
+        ];
+    });
 
-        return response()->json($creditStatsData);
-    }
+    return response()->json($creditStatsData);
+}
 
     public function getUserStats()
     {
