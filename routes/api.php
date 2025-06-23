@@ -7,16 +7,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserManagementController;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| is assigned the "api" middleware group. Enjoy building your API!
-|
-*/
+
 
 // Routes pour l'inscription et la connexion
 Route::post('/register', [RegisterController::class, 'register']);
@@ -72,9 +63,10 @@ use App\Http\Controllers\CreditRequestController;
 Route::middleware('auth:sanctum')->group(function () {
     // Routes pour les demandes de crédit et conseillers
     Route::post('/credit-requests', [CreditRequestController::class, 'store']);
-    Route::get('/credit-requests', [CreditRequestController::class, 'index']);
+    Route::get('/credit-requests-conseiller', [CreditRequestController::class, 'indexConseiller']);
     Route::put('/credit-requests/{id}/status', [CreditRequestController::class, 'updateStatus']);
     Route::get('/active-credits', [CreditRequestController::class, 'getActiveCredits']);
+Route::get('/credit-requests-client', [CreditRequestController::class, 'indexClient']);
 
     // Routes pour les administrateurs
     Route::get('/credit-requests-admin', [CreditRequestController::class, 'indexAdmin']);

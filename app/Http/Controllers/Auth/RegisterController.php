@@ -61,7 +61,7 @@ class RegisterController extends Controller
         'address' => $validatedData['address'] ?? null,
         'type_compte' => $validatedData['type_compte'],
         'password' => Hash::make($validatedData['password']),
-        'statut' => 'Actif', // Ou 'En attente' selon votre workflow
+        'statut' => 'En attente', // Ou 'En attente' selon votre workflow
         'created_by' => $validatedData['created_by'] ?? null
     ]);
 

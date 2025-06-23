@@ -54,6 +54,7 @@ class User extends Authenticatable
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    // Dans le modèle User
     public function creditRequests()
     {
         return $this->hasMany(CreditRequest::class, 'user_id');

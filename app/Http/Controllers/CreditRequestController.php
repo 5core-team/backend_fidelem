@@ -94,7 +94,21 @@ public function getAdvisorStats(Request $request)
     ]);
 }
 
-public function index(Request $request)
+public function indexclient(Request $request)
+{
+     // Récupérer l'ID de l'utilisateur connecté
+    $userId = Auth::id();
+
+    // Récupérer les demandes de crédit de l'utilisateur connecté avec les relations nécessaires
+    $creditRequests = CreditRequest::with(['user.advisor'])
+        ->where('user_id', $userId)
+        ->get();
+
+    return response()->json($creditRequests);
+}
+
+
+public function indexConseiller(Request $request)
 {
     $userId = $request->query('userId');
 
@@ -106,6 +120,8 @@ public function index(Request $request)
 
     return response()->json($creditRequests);
 }
+
+
 
       
          public function indexAdmin(): JsonResponse
