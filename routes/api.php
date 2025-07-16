@@ -91,3 +91,5 @@ Route::middleware('auth:sanctum')->group(function () {
 use App\Http\Controllers\FundingRequestController;
 
 Route::post('/funding-requests', [FundingRequestController::class, 'store']);
+Route::get('/funding-requests', [FundingRequestController::class, 'index']);
+Route::delete('/funding-requests/{id}', [FundingRequestController::class, 'destroy']);

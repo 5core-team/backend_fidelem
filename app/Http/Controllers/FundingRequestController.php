@@ -8,6 +8,13 @@ use Illuminate\Support\Facades\Storage;
 
 class FundingRequestController extends Controller
 {
+
+    public function index()
+{
+    $fundingRequests = FundingRequest::all();
+    return response()->json($fundingRequests);
+}
+
     public function store(Request $request)
     {
         $validatedData = $request->validate([
@@ -24,12 +31,25 @@ class FundingRequestController extends Controller
             'businessPlan' => 'nullable|file|mimes:pdf,doc,docx',
         ]);
 
+        
         if ($request->hasFile('businessPlan')) {
-            $validatedData['businessPlan'] = $request->file('businessPlan')->store('uploads', 'public');
-        }
+    $path = $request->file('businessPlan')->store('public/uploads');
+    $validatedData['businessPlan'] = str_replace('public/', 'storage/', $path);
+}
+
 
         $fundingRequest = FundingRequest::create($validatedData);
 
         return response()->json($fundingRequest, 201);
     }
+
+
+public function destroy($id)
+{
+    $fundingRequest = FundingRequest::findOrFail($id);
+    $fundingRequest->delete();
+
+    return response()->json(['message' => 'Demande de levée de fonds supprimée avec succès'], 200);
+}
+
 }
