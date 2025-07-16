@@ -86,3 +86,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     
 });
+
+
+use App\Http\Controllers\FundingRequestController;
+
+Route::post('/funding-requests', [FundingRequestController::class, 'store']);
