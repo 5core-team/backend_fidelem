@@ -33,7 +33,7 @@ Route::middleware('throttle:formulaires')->group(function () {
 
     Route::post('/demandes-financement', [DemandeFinancementController::class, 'storePublic']);
     Route::post('/messages-contact', [MessageContactController::class, 'store']);
-    Route::post('/candidatures-conseiller', [CandidatureController::class, 'store']);
+    Route::post('/candidatures-conseiller', [CandidatureController::class, 'store'])->middleware('throttle:candidatures');
     Route::post('/easylife/interets', [InteretEasyLifeController::class, 'store']);
 });
 

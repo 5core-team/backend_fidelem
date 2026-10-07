@@ -22,24 +22,42 @@ class ProfilController extends Controller
             return response()->json(['message' => 'Pour modifier vos informations, contactez votre conseiller FIDELEM.'], 403);
         }
 
+        $nouvelEmail = mb_strtolower(trim((string) $request->input('email')));
+        $changeEmail = $nouvelEmail !== mb_strtolower($user->email);
+
         $donnees = $request->validate([
             'firstName' => ['required', 'string', 'max:100', 'not_regex:/[\r\n]/'],
             'lastName' => ['required', 'string', 'max:100', 'not_regex:/[\r\n]/'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'phone' => ['nullable', 'string', 'max:30', 'regex:'.Regles::TELEPHONE],
             'address' => ['nullable', 'string', 'max:255', 'not_regex:/[\r\n]/'],
-        ], ['phone.regex' => 'Indiquez un numéro de téléphone complet.'], [
+            // L'e-mail sert à se connecter et à réinitialiser le mot de passe : le changer exige le mot de passe.
+            'currentPassword' => [Rule::requiredIf($changeEmail), 'nullable', 'string'],
+        ], [
+            'phone.regex' => 'Indiquez un numéro de téléphone complet.',
+            'currentPassword.required' => 'Indiquez votre mot de passe actuel pour changer d\'adresse e-mail.',
+        ], [
             'firstName' => 'prénom',
             'lastName' => 'nom',
+            'currentPassword' => 'mot de passe actuel',
         ]);
+
+        if ($changeEmail && ! Hash::check((string) $donnees['currentPassword'], $user->password)) {
+            throw ValidationException::withMessages(['currentPassword' => 'Le mot de passe actuel est incorrect.']);
+        }
 
         $user->update([
             'name' => $donnees['firstName'],
             'last_name' => $donnees['lastName'],
-            'email' => $donnees['email'],
+            'email' => $nouvelEmail,
             'phone' => $donnees['phone'] ?? null,
             'address' => $donnees['address'] ?? null,
         ]);
+
+        // Nouvelle adresse : les autres sessions sont fermées.
+        if ($changeEmail) {
+            $this->fermerLesAutresSessions($user);
+        }
 
         return response()->json([
             'message' => 'Profil mis à jour.',
@@ -66,11 +84,16 @@ class ProfilController extends Controller
         $user->update(['password' => $donnees['newPassword']]);
 
         // Les autres sessions sont fermées ; celle-ci reste ouverte.
+        $this->fermerLesAutresSessions($user);
+
+        return response()->json(['message' => 'Mot de passe modifié.']);
+    }
+
+    private function fermerLesAutresSessions($user): void
+    {
         $courant = $user->currentAccessToken();
         $user->tokens()
             ->when($courant instanceof PersonalAccessToken, fn ($q) => $q->whereKeyNot($courant->id))
             ->delete();
-
-        return response()->json(['message' => 'Mot de passe modifié.']);
     }
 }

@@ -54,7 +54,7 @@ class ConseillerController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        $this->rattacherDemandes($client);
+        $this->rattacherDemandes($client, $request->user());
 
         return (new CompteResource($client))->response()->setStatusCode(201);
     }
@@ -102,17 +102,22 @@ class ConseillerController extends Controller
         return new CompteResource($user);
     }
 
-    /** Rattache au nouveau client les demandes qu'il avait envoyées sans compte (même e-mail ou même téléphone). */
-    private function rattacherDemandes(User $client): void
+    /**
+     * Rattache au nouveau client les demandes que ce conseiller suit déjà et qui viennent
+     * de la même personne (même e-mail, ou mêmes 8 derniers chiffres de téléphone).
+     * Les demandes suivies par un autre conseiller ou encore sans conseiller ne sont jamais
+     * rattachées : sinon, créer un « client » à l'e-mail d'un tiers donnerait accès à ses demandes.
+     */
+    private function rattacherDemandes(User $client, User $conseiller): void
     {
+        $siennes = fn () => DemandeFinancement::whereNull('user_id')->where('conseiller_id', $conseiller->id);
+
+        $siennes()->where('email', $client->email)->update(['user_id' => $client->id]);
+
         $chiffres = preg_replace('/\D/', '', (string) $client->phone);
-        $fin = strlen($chiffres) >= 8 ? substr($chiffres, -8) : null;
-
-        DemandeFinancement::whereNull('user_id')->where('email', $client->email)->update(['user_id' => $client->id]);
-
-        if ($fin) {
-            // Les numéros sont saisis avec ou sans espaces : on compare les 8 derniers chiffres.
-            DemandeFinancement::whereNull('user_id')
+        if (strlen($chiffres) >= 8) {
+            $fin = substr($chiffres, -8);
+            $siennes()
                 ->where('telephone', 'like', '%'.substr($fin, -2))
                 ->get(['id', 'telephone'])
                 ->filter(fn ($d) => str_ends_with(preg_replace('/\D/', '', $d->telephone), $fin))

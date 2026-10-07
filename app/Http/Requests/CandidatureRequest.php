@@ -11,11 +11,8 @@ class CandidatureRequest extends FormRequest
 
     public function rules(): array
     {
-        $regles = $this->reglesCoordonnees(emailObligatoire: true);
-        $regles['email'][] = 'unique:users,email';
-
         return [
-            ...$regles,
+            ...$this->reglesCoordonnees(emailObligatoire: true),
             'niveauVise' => ['required', 'string', Rule::in(config('fidelem.niveaux_vises'))],
             'situation' => ['required', 'string', Rule::in(config('fidelem.situations'))],
             'experience' => ['nullable', 'string', 'max:2000'],
@@ -28,7 +25,6 @@ class CandidatureRequest extends FormRequest
     {
         return [
             ...$this->messagesCoordonnees(),
-            'email.unique' => 'Un compte existe déjà avec cette adresse e-mail. Connectez-vous à votre Espace Conseiller.',
         ];
     }
 

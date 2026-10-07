@@ -22,6 +22,7 @@ class RetireCaracteresControle extends TransformsRequest
             return $value;
         }
 
-        return preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', str_replace("\r\n", "\n", $value)) ?? '';
+        // Les fins de ligne Windows deviennent \n ; les retours chariot isolés disparaissent.
+        return preg_replace('/[\x00-\x08\x0B-\x1F\x7F]/u', '', str_replace("\r\n", "\n", $value)) ?? '';
     }
 }

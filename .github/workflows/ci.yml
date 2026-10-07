@@ -61,6 +61,8 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Empreinte SHA256 de la clé du serveur (ssh-keyscan … | ssh-keygen -lf -) : refuse un faux serveur.
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
           envs: DEPLOY_PATH
           script: |
             set -e

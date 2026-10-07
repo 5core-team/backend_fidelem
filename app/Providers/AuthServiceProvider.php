@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\DemandeFinancement;
 use App\Policies\DemandeFinancementPolicy;
+use App\Support\Texte;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -33,7 +34,7 @@ class AuthServiceProvider extends ServiceProvider
 
             return (new MailMessage)
                 ->subject('Choisir un nouveau mot de passe FIDELEM')
-                ->greeting("Bonjour {$user->name},")
+                ->greeting('Bonjour '.Texte::brutSurUneLigne($user->name).',')
                 ->line('Vous avez demandé à réinitialiser le mot de passe de votre compte FIDELEM.')
                 ->action('Choisir un nouveau mot de passe', $url)
                 ->line("Ce lien est valable {$minutes} minutes.")

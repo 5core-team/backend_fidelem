@@ -60,6 +60,21 @@ class EspaceUsagerTest extends TestCase
         $this->getJson('/api/credit-requests-client?userId=999')->assertOk()->assertJsonCount(2);
     }
 
+    public function test_l_usager_ne_voit_pas_les_notes_internes(): void
+    {
+        $conseiller = User::factory()->conseiller()->create();
+        $usager = User::factory()->clientDe($conseiller)->create();
+        $demande = DemandeFinancement::factory()->pour($usager)->suiviePar($conseiller)->create();
+        $demande->notes()->create(['user_id' => $conseiller->id, 'texte' => 'Revenus fragiles, à vérifier.']);
+        Sanctum::actingAs($usager);
+
+        $this->getJson('/api/credit-requests-client')
+            ->assertOk()
+            ->assertJsonMissingPath('0.notes')
+            ->assertJsonPath('0.conseiller.nom', $conseiller->nomComplet())
+            ->assertDontSee('Revenus fragiles');
+    }
+
     public function test_les_espaces_des_autres_roles_sont_fermes_a_l_usager(): void
     {
         Sanctum::actingAs(User::factory()->create());

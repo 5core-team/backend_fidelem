@@ -25,7 +25,7 @@ class NouvelleDemandeNotification extends Notification
 
         return (new MailMessage)
             ->subject('Nouvelle demande de financement · '.Texte::ligne($d->zone))
-            ->greeting("Bonjour {$notifiable->name},")
+            ->greeting('Bonjour '.Texte::brutSurUneLigne($notifiable->name).',')
             ->line(Texte::brutSurUneLigne("{$d->prenom} {$d->nom}")." vient d'envoyer une demande de financement {$financement}.")
             ->line('Projet : '.Texte::brutSurUneLigne($d->objet))
             ->when($d->montant > 0, fn ($m) => $m->line('Montant : '.number_format($d->montant, 0, ',', ' ').' FCFA'))

@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\CandidatureConseiller;
+use App\Models\DemandeFinancement;
 use App\Models\User;
 use App\Notifications\CandidatureNotification;
+use App\Notifications\CompteExistantNotification;
 use App\Notifications\MessageContactNotification;
 use App\Notifications\NouvelleDemandeNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,16 +48,16 @@ class SitePublicTest extends TestCase
         $conseiller = User::factory()->conseiller('Cotonou')->create();
         User::factory()->conseiller('Parakou')->create();
 
+        // Le visiteur ne reçoit qu'un accusé de réception.
         $this->postJson('/api/demandes-financement', $this->demande())
             ->assertCreated()
             ->assertJsonPath('statut', 'Nouvelle')
-            ->assertJsonPath('zone', 'Cotonou')
-            ->assertJsonPath('montant', 18_000_000)
-            ->assertJsonPath('rendezVous.creneau', 'Matin (8 h – 12 h)')
-            ->assertJsonMissingPath('amount')
-            ->assertJsonMissingPath('purpose');
+            ->assertJsonStructure(['id', 'statut'])
+            ->assertJsonMissingPath('conseiller')
+            ->assertJsonMissingPath('telephone');
 
-        $this->assertDatabaseHas('demandes_financement', ['prenom' => 'Bernadette', 'zone' => 'Cotonou', 'email' => null]);
+        $this->assertDatabaseHas('demandes_financement', ['prenom' => 'Bernadette', 'zone' => 'Cotonou', 'email' => null, 'montant' => 18_000_000]);
+        $this->assertSame('Matin (8 h – 12 h)', DemandeFinancement::firstOrFail()->rendez_vous['creneau']);
         Notification::assertSentTo($conseiller, NouvelleDemandeNotification::class);
         Notification::assertCount(1);
     }
@@ -73,7 +76,9 @@ class SitePublicTest extends TestCase
 
         $this->postJson('/api/demandes-financement', $this->demande([
             'financement' => 'conseil', 'montant' => 0, 'duree' => 0, 'objet' => 'Prise de rendez-vous', 'conseillerId' => $choisi->id,
-        ]))->assertCreated()->assertJsonPath('conseillerId', $choisi->id);
+        ]))->assertCreated()->assertJsonMissingPath('conseiller');
+
+        $this->assertSame($choisi->id, DemandeFinancement::firstOrFail()->conseiller_id);
 
         Notification::assertSentTo($choisi, NouvelleDemandeNotification::class);
         Notification::assertNotSentTo($autre, NouvelleDemandeNotification::class);
@@ -115,7 +120,7 @@ class SitePublicTest extends TestCase
             'prenom' => 'Ulrich', 'nom' => 'Mensah', 'telephone' => '01 99 21 43 65', 'email' => 'Ulrich@Exemple.bj',
             'niveauVise' => 'CF Inclusion', 'situation' => 'Salarié(e)', 'experience' => '', 'motDePasse' => 'secret-123',
             'rendezVous' => $this->rendezVous('Parakou'),
-        ])->assertCreated()->assertJsonPath('niveauVise', 'CF Inclusion')->assertJsonMissingPath('motDePasse');
+        ])->assertCreated()->assertExactJson(['message' => 'Candidature enregistrée.']);
 
         $compte = User::where('email', 'ulrich@exemple.bj')->firstOrFail();
         $this->assertSame(User::CONSEILLER, $compte->type_compte);
@@ -128,14 +133,22 @@ class SitePublicTest extends TestCase
             ->assertStatus(403)->assertJsonPath('code', 'compte_en_attente');
     }
 
-    public function test_candidature_avec_un_email_deja_utilise(): void
+    public function test_candidature_avec_un_email_deja_utilise_meme_reponse_sans_compte_cree(): void
     {
-        User::factory()->create(['email' => 'pris@exemple.bj']);
-
-        $this->postJson('/api/candidatures-conseiller', [
-            'prenom' => 'A', 'nom' => 'B', 'telephone' => '01 99 21 43 65', 'email' => 'pris@exemple.bj',
+        Notification::fake();
+        $existant = User::factory()->create(['email' => 'pris@exemple.bj']);
+        $corps = [
+            'prenom' => 'A', 'nom' => 'B', 'telephone' => '01 99 21 43 65', 'email' => 'Pris@exemple.bj',
             'niveauVise' => 'CF Croissance', 'situation' => 'Autre', 'motDePasse' => 'secret-123', 'rendezVous' => $this->rendezVous(),
-        ])->assertStatus(422)->assertJsonPath('errors.email.0', 'Un compte existe déjà avec cette adresse e-mail. Connectez-vous à votre Espace Conseiller.');
+        ];
+
+        // Même réponse que pour une nouvelle adresse : rien ne révèle que le compte existe.
+        $this->postJson('/api/candidatures-conseiller', $corps)->assertCreated()->assertExactJson(['message' => 'Candidature enregistrée.']);
+
+        $this->assertSame(1, User::count());
+        $this->assertFalse(password_verify('secret-123', $existant->fresh()->password));
+        $this->assertNull(CandidatureConseiller::firstOrFail()->user_id);
+        Notification::assertSentTo($existant, CompteExistantNotification::class);
     }
 
     public function test_interet_easylife(): void

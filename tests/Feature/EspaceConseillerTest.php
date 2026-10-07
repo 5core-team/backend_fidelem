@@ -99,9 +99,9 @@ class EspaceConseillerTest extends TestCase
 
     public function test_creation_d_un_client_actif_et_rattachement_de_ses_demandes(): void
     {
-        $parEmail = DemandeFinancement::factory()->create(['email' => 'florence@exemple.bj', 'telephone' => '01 00 00 00 01']);
-        $parTelephone = DemandeFinancement::factory()->create(['email' => null, 'telephone' => '+229 01 91 22 33 44']);
-        $autre = DemandeFinancement::factory()->create(['email' => 'autre@exemple.bj', 'telephone' => '01 55 55 55 55']);
+        $parEmail = DemandeFinancement::factory()->suiviePar($this->conseiller)->create(['email' => 'florence@exemple.bj', 'telephone' => '01 00 00 00 01']);
+        $parTelephone = DemandeFinancement::factory()->suiviePar($this->conseiller)->create(['email' => null, 'telephone' => '+229 01 91 22 33 44']);
+        $autre = DemandeFinancement::factory()->suiviePar($this->conseiller)->create(['email' => 'autre@exemple.bj', 'telephone' => '01 55 55 55 55']);
 
         $id = $this->postJson('/api/conseiller/clients', [
             'name' => 'Florence', 'last_name' => 'Adjovi', 'email' => 'Florence@exemple.bj',
@@ -116,6 +116,20 @@ class EspaceConseillerTest extends TestCase
 
         // Le client peut se connecter tout de suite.
         $this->postJson('/api/login', ['email' => 'florence@exemple.bj', 'password' => 'secret-123'])->assertOk();
+    }
+
+    public function test_un_faux_client_ne_recupere_pas_les_demandes_des_autres(): void
+    {
+        $nonAttribuee = DemandeFinancement::factory()->dansLaZone('Parakou')->create(['email' => 'victime@exemple.bj']);
+        $dUnAutre = DemandeFinancement::factory()->suiviePar(User::factory()->conseiller('Cotonou')->create())->create(['email' => 'victime@exemple.bj']);
+
+        $this->postJson('/api/conseiller/clients', [
+            'name' => 'Faux', 'last_name' => 'Client', 'email' => 'victime@exemple.bj',
+            'phone' => '01 90 00 00 00', 'password' => 'secret-123',
+        ])->assertCreated();
+
+        $this->assertNull($nonAttribuee->fresh()->user_id);
+        $this->assertNull($dUnAutre->fresh()->user_id);
     }
 
     public function test_demande_creee_pour_un_client(): void

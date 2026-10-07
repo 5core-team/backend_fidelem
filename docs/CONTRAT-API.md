@@ -25,7 +25,7 @@ les appelle. Chaque route est couverte par les tests de `tests/Feature`.
 | 404 | Ressource introuvable. |
 | 409 | Demande déjà prise en charge par un autre conseiller. |
 | 422 | Données invalides. |
-| 429 | Trop de requêtes : 5 connexions par minute et par adresse, 10 envois de formulaire par minute et par IP. |
+| 429 | Trop de requêtes. Connexion : 5 par minute par adresse et réseau, 20 par minute par réseau, 50 par heure par adresse. Formulaires : 10 par minute et 60 par heure par réseau. Candidatures : 5 par heure. Une adresse IPv6 compte pour son bloc /64. |
 
 Rôles (`type_compte`) : `user` (usager), `advisor` (conseiller), `manager` (responsable).
 
@@ -96,9 +96,9 @@ les clés `amount` ni `purpose`.
 | POST | `/login` | public | `email`, `password` | `{ token, user }` ; 401 ; 403 `compte_en_attente` ou `compte_rejete` |
 | POST | `/logout` | connecté | | 204, jeton révoqué |
 | GET | `/me` | connecté | | utilisateur § 3.1 |
-| POST | `/update-profile` | conseiller, responsable | `firstName`, `lastName`, `email`, `phone`, `address` | `{ message, user }` ; 403 pour un usager |
+| POST | `/update-profile` | conseiller, responsable | `firstName`, `lastName`, `email`, `phone`, `address`, et `currentPassword` si l'e-mail change | `{ message, user }` ; 403 pour un usager ; les autres sessions sont fermées si l'e-mail change |
 | POST | `/update-password` | connecté | `currentPassword`, `newPassword`, `newPassword_confirmation` | `{ message }` ; les autres sessions sont fermées |
-| POST | `/mot-de-passe/oubli` | public | `email` | 200, même réponse si l'adresse est inconnue |
+| POST | `/mot-de-passe/oubli` | public | `email` | 200, même réponse et même durée que l'adresse existe ou non (l'e-mail part après la réponse) |
 | POST | `/mot-de-passe/reinitialiser` | public | `token`, `email`, `password`, `password_confirmation` | 200 ; 422 si le lien n'est plus valide |
 
 Le lien de l'e-mail ouvre `FRONTEND_URL/reinitialiser-mot-de-passe?token=…&email=…`.
@@ -108,9 +108,9 @@ Il est valable 60 minutes et ne sert qu'une fois.
 
 | Méthode | Route | Page du front | Effet |
 | --- | --- | --- | --- |
-| POST | `/demandes-financement` | Services › détail, Trouver un conseiller | Demande `Nouvelle`, e-mail aux conseillers de la zone (ou au conseiller choisi) |
+| POST | `/demandes-financement` | Services › détail, Trouver un conseiller | Demande `Nouvelle`, e-mail aux conseillers de la zone (ou au conseiller choisi). Réponse 201 : `{ id, statut }` seulement |
 | POST | `/messages-contact` | Contact | Message enregistré et transmis à `FIDELEM_CONTACT_EMAIL` |
-| POST | `/candidatures-conseiller` | Conseiller Financier › candidature | Candidature + compte conseiller `En attente`, e-mail à FIDELEM |
+| POST | `/candidatures-conseiller` | Conseiller Financier › candidature | Candidature + compte conseiller `En attente`, e-mail à FIDELEM. Réponse 201 : `{ message }`, identique si l'e-mail a déjà un compte : aucun compte n'est alors créé, et le titulaire de l'adresse est prévenu par e-mail |
 | POST | `/easylife/interets` | (aucune pour l'instant) | Intérêt EasyLife enregistré |
 | GET | `/conseillers?zone=` | Trouver un conseiller | Conseillers actifs de la commune : `id, prenom, nom, zone, niveau, financements, photo` |
 
@@ -126,7 +126,7 @@ rendez-vous) ; `message` ; `conseillerId` facultatif (conseiller actif) ; `rende
 **Contact** : coordonnées, `objet` (`Demande de financement`, `EasyLife`,
 `Devenir conseiller`, `Autre`), `message` obligatoire, `rendezVous` facultatif.
 
-**Candidature** : coordonnées avec `email` obligatoire et non utilisé ;
+**Candidature** : coordonnées avec `email` obligatoire ;
 `niveauVise` (`CF Inclusion`, `CF Croissance`, `CF Patrimoine`, `Je ne sais pas encore`) ;
 `situation` ; `experience` facultative ; `motDePasse` (8 caractères au moins) ; `rendezVous`.
 
@@ -134,7 +134,7 @@ rendez-vous) ; `message` ; `conseillerId` facultatif (conseiller actif) ; `rende
 
 | Méthode | Route | Effet |
 | --- | --- | --- |
-| GET | `/credit-requests-client` | Demandes du compte connecté (§ 3.2). Le paramètre `userId` est ignoré. |
+| GET | `/credit-requests-client` | Demandes du compte connecté (§ 3.2), sans les notes internes. Le paramètre `userId` est ignoré. |
 | POST | `/credit-requests` | Nouvelle demande au nom du compte connecté |
 
 **`POST /credit-requests`** (usager ou conseiller) : `amount`, `duration`,
@@ -151,7 +151,7 @@ est adressée à son conseiller attitré s'il en a un.
 | GET | `/conseiller/demandes-zone` | conseiller | Demandes `Nouvelle` de sa zone sans conseiller, et celles qui lui sont adressées |
 | GET | `/credit-requests-conseiller` | conseiller | Dossiers qu'il suit (hors `Nouvelle`). `userId` est ignoré. |
 | GET | `/advisor/{id}/clients` | conseiller | Ses clients ; 403 si `{id}` n'est pas lui |
-| POST | `/conseiller/clients` | conseiller | Crée un client **actif** (`name`, `last_name`, `email`, `phone`, `address`, `password`) et lui rattache ses demandes envoyées sans compte (même e-mail, ou mêmes 8 derniers chiffres de téléphone) |
+| POST | `/conseiller/clients` | conseiller | Crée un client **actif** (`name`, `last_name`, `email`, `phone`, `address`, `password`) et lui rattache les demandes sans compte **que ce conseiller suit déjà** (même e-mail, ou mêmes 8 derniers chiffres de téléphone) |
 | POST | `/demandes-financement/{id}/prise-en-charge` | conseiller | Statut `Prise en charge` ; 409 si un autre l'a déjà prise ; 403 hors zone |
 | PUT | `/demandes-financement/{id}/statut` | conseiller qui suit, responsable | `{ statut }` parmi les six du § 2 |
 | PUT | `/demandes-financement/{id}/rendez-vous` | conseiller qui suit, responsable | `{ date, creneau, mode? }` ; statut `Rendez-vous fixé` ; e-mail à l'usager s'il a une adresse |

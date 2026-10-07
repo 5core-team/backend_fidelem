@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\MessageContact;
 use App\Models\User;
 use App\Notifications\MessageContactNotification;
+use App\Providers\RouteServiceProvider;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\Sanctum;
@@ -148,5 +150,36 @@ class DurcissementTest extends TestCase
         $this->artisan('db:seed', ['--force' => true]);
 
         $this->assertDatabaseMissing('users', ['email' => 'responsable@fidelem.test']);
+    }
+
+    public function test_ipv6_regroupee_par_bloc_64(): void
+    {
+        $this->assertSame(
+            RouteServiceProvider::reseau('2001:db8:1:2:aaaa::1'),
+            RouteServiceProvider::reseau('2001:db8:1:2:ffff:ffff:ffff:ffff'),
+        );
+        $this->assertNotSame(RouteServiceProvider::reseau('2001:db8:1:2::1'), RouteServiceProvider::reseau('2001:db8:1:3::1'));
+        $this->assertSame('203.0.113.7', RouteServiceProvider::reseau('203.0.113.7'));
+    }
+
+    public function test_un_meme_compte_est_limite_quelle_que_soit_l_ip(): void
+    {
+        User::factory()->create(['email' => 'cible@exemple.bj']);
+
+        foreach (range(1, 50) as $i) {
+            $this->withServerVariables(['REMOTE_ADDR' => "198.51.100.{$i}"])
+                ->postJson('/api/login', ['email' => 'cible@exemple.bj', 'password' => "essai-{$i}"])->assertStatus(401);
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.200'])
+            ->postJson('/api/login', ['email' => 'cible@exemple.bj', 'password' => 'password'])->assertStatus(429);
+    }
+
+    public function test_le_nom_est_neutralise_dans_l_e_mail_de_reinitialisation(): void
+    {
+        $user = User::factory()->make(['name' => '[Confirmez votre compte](https://piege.example)']);
+        $html = (string) (new ResetPassword('jeton'))->toMail($user)->render();
+
+        $this->assertStringNotContainsString('href="https://piege.example"', $html);
     }
 }

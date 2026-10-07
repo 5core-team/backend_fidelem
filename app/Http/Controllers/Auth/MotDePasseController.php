@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Notifier;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Throwable;
 
 class MotDePasseController extends Controller
 {
@@ -18,13 +18,10 @@ class MotDePasseController extends Controller
     {
         $request->validate(['email' => ['required', 'email']]);
 
-        // Même réponse dans tous les cas, y compris si l'envoi échoue : sinon l'erreur
-        // révélerait qu'un compte existe pour cette adresse. L'échec est journalisé.
-        try {
-            Password::sendResetLink($request->only('email'));
-        } catch (Throwable $e) {
-            report($e);
-        }
+        // Même réponse et même durée dans tous les cas : l'e-mail part après la réponse,
+        // et un échec d'envoi est seulement journalisé. Rien ne révèle qu'un compte existe.
+        $email = (string) $request->input('email');
+        Notifier::apresLaReponse(fn () => Password::sendResetLink(['email' => $email]));
 
         return response()->json([
             'message' => 'Si un compte existe pour cette adresse, un e-mail vient de lui être envoyé.',

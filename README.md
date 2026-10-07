@@ -22,7 +22,7 @@ est décrit dans [`docs/CONTRAT-API.md`](docs/CONTRAT-API.md).
 
 ```sh
 composer install
-cp .env.example .env
+cp .env.example .env         # en local : APP_ENV=local et APP_DEBUG=true
 php artisan key:generate
 # créer la base indiquée dans DB_DATABASE, puis :
 php artisan migrate
@@ -131,9 +131,15 @@ du mot de passe et la reprise des anciennes demandes.
 - **Sessions** : jetons Sanctum préfixés `fidelem_`, expirés après
   `SANCTUM_EXPIRATION` minutes, révoqués à la déconnexion, au changement ou à la
   réinitialisation du mot de passe et au rejet du compte. Aucune session par cookie.
-- **Abus** : 5 connexions par minute par adresse et IP, 20 par IP ; 10 envois de
-  formulaire par minute par IP. Le temps de réponse de la connexion ne révèle pas
-  si une adresse existe, et « mot de passe oublié » répond toujours de la même façon.
+- **Abus** : connexion limitée à 5 essais par minute par adresse et réseau, 20 par
+  réseau et 50 par heure par adresse ; formulaires à 10 par minute et 60 par heure par
+  réseau ; candidatures à 5 par heure. Une adresse IPv6 compte pour son bloc /64.
+- **Pas d'oracle** : la connexion répond en temps constant, « mot de passe oublié »
+  et la candidature répondent pareil que le compte existe ou non, et les e-mails
+  partent après la réponse. Changer d'adresse e-mail exige le mot de passe actuel.
+- **Cloisonnement** : un usager ne voit pas les notes internes de son dossier ; un
+  visiteur ne reçoit qu'un accusé de réception ; un conseiller ne rattache à un client
+  que les demandes qu'il suit déjà.
 - **Saisies** : caractères de contrôle retirés, champs d'une ligne sans retour à la
   ligne, téléphone limité aux chiffres et à `+ . - ( )`, listes bornées. Le texte des
   visiteurs est neutralisé dans les e-mails (aucun lien ni mise en forme).
@@ -151,7 +157,8 @@ une issue publique.
 
 Le déploiement sur le VPS est désactivé tant que la variable de dépôt
 `DEPLOY_ENABLED` ne vaut pas `true` (Settings › Secrets and variables › Actions).
-Il attend les secrets `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_PRIVATE_KEY` et,
+Il attend les secrets `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_PRIVATE_KEY`,
+`SSH_FINGERPRINT` (empreinte de la clé du serveur, pour refuser un faux serveur) et,
 au besoin, la variable `DEPLOY_PATH` (défaut `/var/www/backend_fidelem`). À
 chaque push sur `main`, il exécute sur le serveur `git pull`, `composer install
 --no-dev`, `php artisan migrate --force` et la mise en cache de la configuration

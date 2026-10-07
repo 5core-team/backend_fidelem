@@ -90,8 +90,23 @@ class AuthentificationTest extends TestCase
         Sanctum::actingAs(User::factory()->conseiller()->create());
 
         $this->postJson('/api/update-profile', [
-            'firstName' => 'Marie Claire', 'lastName' => 'Dossou', 'email' => 'mc@exemple.bj', 'phone' => '01 90 00 00 00', 'address' => 'Cotonou',
-        ])->assertOk()->assertJsonPath('user.name', 'Marie Claire');
+            'firstName' => 'Marie Claire', 'lastName' => 'Dossou', 'email' => 'MC@exemple.bj', 'phone' => '01 90 00 00 00', 'address' => 'Cotonou',
+            'currentPassword' => 'password',
+        ])->assertOk()->assertJsonPath('user.name', 'Marie Claire')->assertJsonPath('user.email', 'mc@exemple.bj');
+    }
+
+    public function test_changer_d_email_exige_le_mot_de_passe(): void
+    {
+        $user = User::factory()->conseiller()->create(['email' => 'avant@exemple.bj']);
+        Sanctum::actingAs($user);
+        $profil = ['firstName' => 'A', 'lastName' => 'B', 'email' => 'apres@exemple.bj'];
+
+        $this->postJson('/api/update-profile', $profil)->assertStatus(422)->assertJsonValidationErrors('currentPassword');
+        $this->postJson('/api/update-profile', [...$profil, 'currentPassword' => 'mauvais'])->assertStatus(422)->assertJsonValidationErrors('currentPassword');
+        $this->assertSame('avant@exemple.bj', $user->fresh()->email);
+
+        // Sans changement d'adresse, le mot de passe n'est pas demandé.
+        $this->postJson('/api/update-profile', [...$profil, 'email' => 'avant@exemple.bj'])->assertOk();
     }
 
     public function test_un_usager_ne_modifie_pas_son_profil_lui_meme(): void

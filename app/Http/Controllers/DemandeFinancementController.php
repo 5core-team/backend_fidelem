@@ -20,6 +20,9 @@ class DemandeFinancementController extends Controller
     /** Relations chargées pour chaque demande renvoyée au front. */
     private const AVEC = ['conseiller', 'notes.auteur'];
 
+    /** Côté usager : son conseiller, mais pas les notes internes du dossier. */
+    private const AVEC_USAGER = ['conseiller'];
+
     /* ------------------------------------------------------------------ */
     /* Création */
     /* ------------------------------------------------------------------ */
@@ -49,7 +52,8 @@ class DemandeFinancementController extends Controller
 
         $this->prevenirConseillers($demande);
 
-        return (new DemandeResource($demande->load(self::AVEC)))->response()->setStatusCode(201);
+        // Le visiteur n'est pas connecté : il ne reçoit que l'accusé de réception, rien sur le conseiller.
+        return response()->json(['id' => $demande->id, 'statut' => $demande->statut], 201);
     }
 
     /** Espaces connectés : l'usager pour lui-même, le conseiller pour l'un de ses clients. */
@@ -93,7 +97,7 @@ class DemandeFinancementController extends Controller
             $this->prevenirConseillers($demande);
         }
 
-        return (new DemandeResource($demande->load(self::AVEC)))->response()->setStatusCode(201);
+        return (new DemandeResource($demande->load($auteur->estConseiller() ? self::AVEC : self::AVEC_USAGER)))->response()->setStatusCode(201);
     }
 
     /* ------------------------------------------------------------------ */
@@ -104,7 +108,7 @@ class DemandeFinancementController extends Controller
     public function indexUsager(Request $request): AnonymousResourceCollection
     {
         return DemandeResource::collection(
-            $request->user()->demandes()->with(self::AVEC)->latest()->get()
+            $request->user()->demandes()->with(self::AVEC_USAGER)->latest()->get()
         );
     }
 
