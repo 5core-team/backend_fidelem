@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+# Jeton GitHub en lecture seule pour tous les jobs.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo_sqlite, bcmath
+          coverage: none
+
+      - name: Dépendances
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Vulnérabilités connues des dépendances
+        run: composer audit --no-interaction
+
+      - name: Style (Pint)
+        run: vendor/bin/pint --test app config/fidelem.php database/factories database/seeders routes tests lang
+
+      - name: Tests
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan test
+
+  deploy:
+    # Activer en créant la variable de dépôt DEPLOY_ENABLED=true (Settings › Secrets and variables › Actions).
+    needs: tests
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Déploiement sur le VPS
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/var/www/backend_fidelem' }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DEPLOY_PATH
+          script: |
+            set -e
+            cd "$DEPLOY_PATH"
+            git pull --ff-only origin main
+            composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache

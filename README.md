@@ -1,66 +1,170 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# FIDELEM · API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+API de la plateforme FIDELEM : comptes (usagers, conseillers financiers,
+responsables), demandes de financement, candidatures de conseillers, messages de
+contact et suivi des dossiers. Elle alimente le front-end
+[`frontend_fidelem`](https://github.com/5core-team/frontend_fidelem).
 
-## About Laravel
+Le contrat attendu par le front (routes, champs, statuts, formats de réponse)
+est décrit dans [`docs/CONTRAT-API.md`](docs/CONTRAT-API.md).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Rôle | Outil |
+| --- | --- |
+| Framework | Laravel 12 (PHP 8.2 ou plus) |
+| Base de données | MySQL 8 (SQLite en mémoire pour les tests) |
+| Authentification | Laravel Sanctum 4, jetons Bearer uniquement |
+| E-mails | Notifications Laravel (SMTP) |
+| Tests et style | PHPUnit 11, Laravel Pint |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Installation
 
-## Learning Laravel
+```sh
+composer install
+cp .env.example .env
+php artisan key:generate
+# créer la base indiquée dans DB_DATABASE, puis :
+php artisan migrate
+php artisan serve            # http://127.0.0.1:8000
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Toutes les routes sont servies sous `/api` (`http://127.0.0.1:8000/api/login`,
+par exemple). Côté front, `VITE_API_URL` doit donc se terminer par `/api`.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### Données de démonstration (local uniquement)
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```sh
+php artisan migrate:fresh --seed
+```
 
-## Laravel Sponsors
+Crée trois comptes, mot de passe `password` : `responsable@fidelem.test`,
+`conseillere@fidelem.test` (zone Cotonou) et `usager@fidelem.test`, ainsi que
+quelques demandes. Le seeder ne fait rien en production.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### Premier compte responsable
 
-### Premium Partners
+L'inscription publique n'existe pas : les usagers sont créés par leur conseiller,
+les conseillers par une candidature ou par un responsable. Le premier responsable
+se crée en ligne de commande, le mot de passe est demandé de façon masquée :
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+```sh
+php artisan fidelem:responsable prenom.nom@fidelem.pro --prenom=Prénom --nom=Nom
+```
 
-## Contributing
+La commande réactive aussi un compte existant et lui donne le rôle de responsable.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Configuration
 
-## Code of Conduct
+| Variable | Rôle | Défaut |
+| --- | --- | --- |
+| `FRONTEND_URL` | Adresse du site, pour les liens envoyés par e-mail | `http://localhost:8080` |
+| `CORS_ALLOWED_ORIGINS` | Origines autorisées, séparées par des virgules | `http://localhost:8080,http://127.0.0.1:8080` |
+| `SANCTUM_EXPIRATION` | Durée d'une session, en minutes | `10080` (7 jours) |
+| `TRUSTED_PROXIES` | Proxies dont on lit les en-têtes `X-Forwarded-*` | `127.0.0.1,::1` |
+| `FIDELEM_CONTACT_EMAIL` | Boîte qui reçoit messages de contact et candidatures | `contact@fidelem.pro` |
+| `MAIL_*` | Serveur d'envoi des e-mails | Mailpit en local |
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Les valeurs partagées avec le front (communes, statuts, créneaux, niveaux) sont
+dans `config/fidelem.php`. Toute modification doit être reportée dans
+`src/donnees/fidelem.ts` côté front.
 
-## Security Vulnerabilities
+## Rôles et statuts
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+| `type_compte` | Rôle | Espace front |
+| --- | --- | --- |
+| `user` | Usager | `/mon-espace` |
+| `advisor` | Conseiller financier | `/espace-conseiller` |
+| `manager` | Responsable FIDELEM | `/responsable` |
 
-## License
+Un compte vaut `En attente`, `Actif` ou `Rejeté`. Seuls les comptes `Actif`
+se connectent ; un compte rejeté perd ses sessions ouvertes. Les droits sont
+appliqués par le middleware `role` (`app/Http/Middleware/EnsureRole.php`) et par
+la politique `DemandeFinancementPolicy`.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Organisation du code
+
+```
+app/
+├── Http/
+│   ├── Controllers/
+│   │   ├── Auth/ConnexionController.php     Connexion, déconnexion, utilisateur connecté
+│   │   ├── Auth/MotDePasseController.php    Mot de passe oublié et réinitialisation
+│   │   ├── DemandeFinancementController.php Demandes : création, listes, prise en charge, statut, rendez-vous
+│   │   ├── NoteDemandeController.php        Notes d'un dossier
+│   │   ├── ConseillerController.php         Recherche publique, clients, création de conseillers, zones
+│   │   ├── CompteController.php             Back-office : comptes
+│   │   ├── StatistiqueController.php        Back-office : chiffres
+│   │   ├── CandidatureController.php        Candidatures de conseillers
+│   │   ├── MessageContactController.php     Messages de contact
+│   │   ├── InteretEasyLifeController.php    Intérêts EasyLife
+│   │   └── ProfilController.php             Profil et mot de passe
+│   ├── Middleware/EnsureRole.php            Compte actif et type de compte
+│   ├── Requests/                            Validation des formulaires
+│   └── Resources/                           Formats JSON lus par le front
+├── Models/                                  User, DemandeFinancement, NoteDemande, CandidatureConseiller, MessageContact, InteretEasyLife
+├── Notifications/                           E-mails envoyés
+├── Policies/DemandeFinancementPolicy.php    Qui peut prendre ou modifier une demande
+└── Support/Notifier.php                     Envoi d'e-mails sans faire échouer la requête
+config/fidelem.php                           Référentiel partagé avec le front
+lang/fr/                                     Messages en français
+routes/api.php                               Routes de l'API
+docs/CONTRAT-API.md                          Contrat avec le front
+```
+
+## Tests
+
+```sh
+php artisan test
+vendor/bin/pint --test app config/fidelem.php database/factories database/seeders routes tests lang
+```
+
+Les tests tournent sur SQLite en mémoire. Ils couvrent l'authentification, les
+droits d'accès, les formulaires du site, les trois espaces, la réinitialisation
+du mot de passe et la reprise des anciennes demandes.
+
+## Sécurité
+
+- **Accès** : chaque route passe par le middleware `role` (compte actif et type de
+  compte) ; les demandes sont protégées par `DemandeFinancementPolicy`. Les comptes
+  responsables ne se rejettent ni ne se suppriment depuis l'API.
+- **Sessions** : jetons Sanctum préfixés `fidelem_`, expirés après
+  `SANCTUM_EXPIRATION` minutes, révoqués à la déconnexion, au changement ou à la
+  réinitialisation du mot de passe et au rejet du compte. Aucune session par cookie.
+- **Abus** : 5 connexions par minute par adresse et IP, 20 par IP ; 10 envois de
+  formulaire par minute par IP. Le temps de réponse de la connexion ne révèle pas
+  si une adresse existe, et « mot de passe oublié » répond toujours de la même façon.
+- **Saisies** : caractères de contrôle retirés, champs d'une ligne sans retour à la
+  ligne, téléphone limité aux chiffres et à `+ . - ( )`, listes bornées. Le texte des
+  visiteurs est neutralisé dans les e-mails (aucun lien ni mise en forme).
+- **Réponses** : en-têtes `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy`, `Content-Security-Policy` et, en HTTPS,
+  `Strict-Transport-Security`.
+- **Dépendances** : `composer audit` tourne dans la CI et bloque en cas de faille connue.
+
+Une faille à signaler : écrire à l'adresse de `FIDELEM_CONTACT_EMAIL` plutôt que d'ouvrir
+une issue publique.
+
+## Intégration et déploiement
+
+`.github/workflows/ci.yml` lance Pint et les tests à chaque push et à chaque PR.
+
+Le déploiement sur le VPS est désactivé tant que la variable de dépôt
+`DEPLOY_ENABLED` ne vaut pas `true` (Settings › Secrets and variables › Actions).
+Il attend les secrets `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_PRIVATE_KEY` et,
+au besoin, la variable `DEPLOY_PATH` (défaut `/var/www/backend_fidelem`). À
+chaque push sur `main`, il exécute sur le serveur `git pull`, `composer install
+--no-dev`, `php artisan migrate --force` et la mise en cache de la configuration
+et des routes.
+
+À prévoir une fois sur le serveur :
+
+- PHP 8.2 ou plus, avec `expose_php = Off` dans `php.ini` ;
+- dans `.env` : `APP_ENV=production`, `APP_DEBUG=false`, `LOG_LEVEL=warning`, une
+  `APP_KEY` propre, `APP_URL=https://api.fidelem.pro`, `FRONTEND_URL=https://fidelem.pro`,
+  `CORS_ALLOWED_ORIGINS=https://fidelem.pro,https://www.fidelem.pro`, `TRUSTED_PROXIES`
+  si nginx est un proxy distant, et un serveur SMTP dans `MAIL_*` ;
+- la tâche planifiée qui purge les jetons expirés :
+  `* * * * * cd /var/www/backend_fidelem && php artisan schedule:run >> /dev/null 2>&1` ;
+- nginx : servir uniquement `public/`, refuser les fichiers cachés (`location ~ /\. { deny all; }`)
+  et ne pas exposer `storage/`.
