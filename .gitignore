@@ -17,3 +17,7 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Dumps de base de données : ne jamais les versionner
+*.sql
+*.sql.gz
