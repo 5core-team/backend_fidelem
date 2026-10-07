@@ -4,26 +4,12 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| Routes web
 |--------------------------------------------------------------------------
 |
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
+| L'application est une API : le site est servi par le dépôt frontend_fidelem.
+| La racine répond simplement pour les sondes de disponibilité.
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
-
-
-Route::get('/uploads/{filename}', function ($filename) {
-    $path = storage_path('app/public/uploads/' . $filename);
-
-    if (!file_exists($path)) {
-        abort(404);
-    }
-
-    return response()->file($path);
-});
+Route::get('/', fn () => response()->json(['application' => config('app.name'), 'statut' => 'ok']));

@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'FIDELEM'),
 
     /*
     |--------------------------------------------------------------------------
@@ -59,6 +59,12 @@ return [
 
     'asset_url' => env('ASSET_URL'),
 
+    // Adresse du site public : sert à construire les liens envoyés par e-mail.
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:8080'),
+
+    // Proxies dont on accepte les en-têtes X-Forwarded-* (nginx sur la même machine par défaut).
+    'trusted_proxies' => env('TRUSTED_PROXIES', '127.0.0.1,::1'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
@@ -70,7 +76,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------
@@ -83,7 +89,7 @@ return [
     |
     */
 
-    'locale' => 'en',
+    'locale' => 'fr',
 
     /*
     |--------------------------------------------------------------------------
@@ -109,7 +115,7 @@ return [
     |
     */
 
-    'faker_locale' => 'en_US',
+    'faker_locale' => 'fr_FR',
 
     /*
     |--------------------------------------------------------------------------

@@ -1,95 +1,88 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\Auth\ConnexionController;
+use App\Http\Controllers\Auth\MotDePasseController;
+use App\Http\Controllers\CandidatureController;
+use App\Http\Controllers\CompteController;
+use App\Http\Controllers\ConseillerController;
+use App\Http\Controllers\DemandeFinancementController;
+use App\Http\Controllers\InteretEasyLifeController;
+use App\Http\Controllers\MessageContactController;
+use App\Http\Controllers\NoteDemandeController;
+use App\Http\Controllers\ProfilController;
+use App\Http\Controllers\StatistiqueController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\UserManagementController;
 
+/*
+|--------------------------------------------------------------------------
+| API FIDELEM
+|--------------------------------------------------------------------------
+|
+| Toutes ces routes sont servies sous le préfixe /api. Le contrat attendu par
+| le front est décrit dans docs/CONTRAT-API.md.
+|
+*/
 
+/* ----------------------------- Site public ----------------------------- */
 
-// Routes pour l'inscription et la connexion
-Route::post('/register', [RegisterController::class, 'register']);
-Route::post('/login', [LoginController::class, 'login']);
+Route::post('/login', [ConnexionController::class, 'login'])->middleware('throttle:connexion');
 
-// Routes pour la validation des utilisateurs
-Route::middleware(['auth:sanctum'])->group(function () {
-    Route::put('/users/{userId}/validate', [UserController::class, 'validateUser']);
+Route::middleware('throttle:formulaires')->group(function () {
+    Route::post('/mot-de-passe/oubli', [MotDePasseController::class, 'oubli']);
+    Route::post('/mot-de-passe/reinitialiser', [MotDePasseController::class, 'reinitialiser']);
+
+    Route::post('/demandes-financement', [DemandeFinancementController::class, 'storePublic']);
+    Route::post('/messages-contact', [MessageContactController::class, 'store']);
+    Route::post('/candidatures-conseiller', [CandidatureController::class, 'store']);
+    Route::post('/easylife/interets', [InteretEasyLifeController::class, 'store']);
 });
 
-// Routes protégées par type de compte
-Route::middleware(['auth:sanctum', 'checkUserType:Client'])->group(function () {
-    // Routes accessibles uniquement par les clients
-    Route::get('/dashboard/client', function () {
-        return response()->json(['message' => 'Bienvenue sur le tableau de bord Client']);
+Route::get('/conseillers', [ConseillerController::class, 'rechercher']);
+
+/* --------------------------- Espaces connectés -------------------------- */
+
+Route::middleware(['auth:sanctum', 'role'])->group(function () {
+    Route::post('/logout', [ConnexionController::class, 'logout']);
+    Route::get('/me', [ConnexionController::class, 'me']);
+    Route::post('/update-profile', [ProfilController::class, 'update']);
+    Route::post('/update-password', [ProfilController::class, 'updatePassword']);
+
+    // Mon espace (usager)
+    Route::get('/credit-requests-client', [DemandeFinancementController::class, 'indexUsager'])->middleware('role:user');
+    Route::post('/credit-requests', [DemandeFinancementController::class, 'storeEspace'])->middleware('role:user,advisor');
+
+    // Espace Conseiller
+    Route::middleware('role:advisor')->group(function () {
+        Route::get('/conseiller/demandes-zone', [DemandeFinancementController::class, 'indexZone']);
+        Route::get('/credit-requests-conseiller', [DemandeFinancementController::class, 'indexConseiller']);
+        Route::get('/advisor/{advisor}/clients', [ConseillerController::class, 'clients'])->whereNumber('advisor');
+        Route::post('/conseiller/clients', [ConseillerController::class, 'creerClient']);
+        Route::post('/demandes-financement/{demande}/prise-en-charge', [DemandeFinancementController::class, 'prendreEnCharge']);
+    });
+
+    // Suivi d'un dossier : conseiller qui le suit, ou responsable
+    Route::middleware('role:advisor,manager')->group(function () {
+        Route::put('/demandes-financement/{demande}/statut', [DemandeFinancementController::class, 'changerStatut']);
+        Route::put('/demandes-financement/{demande}/rendez-vous', [DemandeFinancementController::class, 'fixerRendezVous']);
+        Route::post('/demandes-financement/{demande}/notes', [NoteDemandeController::class, 'store']);
+    });
+
+    // Back-office (responsable)
+    Route::middleware('role:manager')->group(function () {
+        Route::get('/users', [CompteController::class, 'index']);
+        Route::post('/users/{user}/approve', [CompteController::class, 'approuver']);
+        Route::post('/users/{user}/reject', [CompteController::class, 'rejeter']);
+        Route::delete('/users/{user}', [CompteController::class, 'supprimer']);
+
+        Route::get('/user-stats', [StatistiqueController::class, 'comptes']);
+        Route::get('/credit-stats', [StatistiqueController::class, 'demandes']);
+        Route::get('/credit-requests-admin', [DemandeFinancementController::class, 'indexResponsable']);
+
+        Route::get('/candidatures-conseiller', [CandidatureController::class, 'index']);
+        Route::get('/messages-contact', [MessageContactController::class, 'index']);
+        Route::get('/easylife/interets', [InteretEasyLifeController::class, 'index']);
+
+        Route::post('/responsable/conseillers', [ConseillerController::class, 'creerConseiller']);
+        Route::put('/conseillers/{user}/zone', [ConseillerController::class, 'attribuerZone']);
     });
 });
-
-Route::middleware(['auth:sanctum', 'checkUserType:Conseiller Financier'])->group(function () {
-    // Routes accessibles uniquement par les conseillers financiers
-    Route::get('/dashboard/conseiller', function () {
-        return response()->json(['message' => 'Bienvenue sur le tableau de bord Conseiller Financier']);
-    });
-});
-
-Route::middleware(['auth:sanctum', 'checkUserType:Responsable Financier'])->group(function () {
-    // Routes accessibles uniquement par les responsables financiers
-    Route::get('/dashboard/responsable', function () {
-        return response()->json(['message' => 'Bienvenue sur le tableau de bord Responsable Financier']);
-    });
-});
-
-
-
-    Route::get('/users', [UserManagementController::class, 'index']);
-    Route::get('/user-stats', [UserManagementController::class, 'getUserStats']);
-    Route::get('/user-stats-advisor', [UserManagementController::class, 'getUserStatsAdvisor']);
-    Route::get('/credit-stats', [UserManagementController::class, 'getCreditStats']);
-    Route::post('/users/{id}/approve', [UserManagementController::class, 'approve']);
-    Route::post('/users/{id}/reject', [UserManagementController::class, 'reject']);
-    Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
-    Route::get('/pending-accounts-count', [UserManagementController::class, 'getPendingAccountsCount']);
-
-
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/update-profile', [UserManagementController::class, 'updateProfile']);
-    Route::post('/update-password', [UserManagementController::class, 'updatePassword']);
-});
-
-
-use App\Http\Controllers\CreditRequestController;
-
-Route::middleware('auth:sanctum')->group(function () {
-    // Routes pour les demandes de crédit et conseillers
-    Route::post('/credit-requests', [CreditRequestController::class, 'store']);
-    Route::get('/credit-requests-conseiller', [CreditRequestController::class, 'indexConseiller']);
-    Route::put('/credit-requests/{id}/status', [CreditRequestController::class, 'updateStatus']);
-    Route::get('/active-credits', [CreditRequestController::class, 'getActiveCredits']);
-Route::get('/credit-requests-client', [CreditRequestController::class, 'indexClient']);
-
-    // Routes pour les administrateurs
-    Route::get('/credit-requests-admin', [CreditRequestController::class, 'indexAdmin']);
-    Route::post('/credit-requests/{id}/approve', [CreditRequestController::class, 'approve']);
-    Route::post('/credit-requests/{id}/reject', [CreditRequestController::class, 'reject']);
-    Route::delete('/credit-requests/{id}', [CreditRequestController::class, 'destroy']);
-    Route::put('/credit-requests/{id}/status', [CreditRequestController::class, 'updateStatus']);
-});
-
-
-Route::middleware('auth:sanctum')->group(function () {
-    // Routes pour les conseillers
-    Route::prefix('advisor')->group(function () {
-        Route::get('/{advisorId}/clients', [UserController::class, 'getClientsByAdvisor']);
-        Route::get('/{advisorId}/stats', [UserController::class, 'getAdvisorStats']);
-        Route::get('/{advisorId}/credit-requests', [CreditRequestController::class, 'getCreditRequestsByAdvisor']);
-    });
-    
-});
-
-
-use App\Http\Controllers\FundingRequestController;
-
-Route::post('/funding-requests', [FundingRequestController::class, 'store']);
-Route::get('/funding-requests', [FundingRequestController::class, 'index']);
-Route::delete('/funding-requests/{id}', [FundingRequestController::class, 'destroy']);

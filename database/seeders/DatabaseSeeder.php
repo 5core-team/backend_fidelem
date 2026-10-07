@@ -2,21 +2,23 @@
 
 namespace Database\Seeders;
 
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * En local et en test uniquement : comptes et demandes d'exemple.
+     * Ailleurs, le premier responsable se crée avec `php artisan fidelem:responsable`.
      */
     public function run(): void
     {
-        // \App\Models\User::factory(10)->create();
+        // Les comptes d'exemple ont un mot de passe connu : seulement en local et en test.
+        if (! app()->environment(['local', 'testing'])) {
+            $this->command?->warn("Aucune donnée d'exemple hors local. Utilisez php artisan fidelem:responsable.");
 
-        // \App\Models\User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
+            return;
+        }
+
+        $this->call(DemoSeeder::class);
     }
 }

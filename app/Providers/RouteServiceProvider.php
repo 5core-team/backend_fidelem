@@ -13,11 +13,11 @@ class RouteServiceProvider extends ServiceProvider
     /**
      * The path to your application's "home" route.
      *
-     * Typically, users are redirected here after authentication.
+     * Inutilisé par l'API, conservé pour le middleware « guest » de Laravel.
      *
      * @var string
      */
-    public const HOME = '/home';
+    public const HOME = '/';
 
     /**
      * Define your route model bindings, pattern filters, and other route configuration.
@@ -25,7 +25,21 @@ class RouteServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Connexion : 5 essais par minute pour une même adresse depuis une même IP,
+        // et 20 par minute depuis une même IP, toutes adresses confondues.
+        RateLimiter::for('connexion', function (Request $request) {
+            return [
+                Limit::perMinute(5)->by('adresse|'.mb_strtolower((string) $request->input('email')).'|'.$request->ip()),
+                Limit::perMinute(20)->by('ip|'.$request->ip()),
+            ];
+        });
+
+        // Formulaires publics : limite les envois automatisés.
+        RateLimiter::for('formulaires', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
         });
 
         $this->routes(function () {
